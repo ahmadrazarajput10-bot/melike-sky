@@ -346,3 +346,14 @@ body.at-door .corner.moon-note { opacity: 0; pointer-events: none; }
   .corner.left { font-size: 13px; }
   .small-link { font-size: 18px; }
 }
+
+/* laptops with not much vertical room */
+@media (max-height: 720px) {
+  .after { top: 54%; }
+  .after p { font-size: clamp(18px, 2.2vw, 22px); }
+  .entry { font-size: 13px; margin-top: .3em; width: min(80vw, 300px); }
+  .entry div { padding: .04em 0; }
+  .after .small { margin-top: .5em !important; font-size: 14px !important; }
+  .after .link { margin-top: .15em; font-size: 24px; }
+  .whisper { top: 12%; }
+}

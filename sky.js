@@ -159,7 +159,7 @@
     var scale = Math.min(maxW / word.width, maxH);
     var totalW = word.width * scale;
     var x0 = (W - totalW) / 2;
-    var y0 = H * 0.40 - scale / 2;
+    var y0 = H * 0.38 - scale / 2;
     for (var i = 0; i < word.pts.length; i++) {
       cstars[i].tx = x0 + word.pts[i].u * scale;
       cstars[i].ty = y0 + word.pts[i].v * scale;
