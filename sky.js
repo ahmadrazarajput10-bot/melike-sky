@@ -263,16 +263,27 @@
     }));
   }
 
-  // wishes that land near each other join up into her own little constellation
+  // wishes that land near each other join up into her own little constellation.
+  // each one only reaches for its two nearest neighbours, otherwise a busy
+  // sky turns into a spider web. learned that the hard way.
   function rebuildEdges() {
     wishEdges = [];
     var D = Math.min(W, H) * 0.17;
-    var i, j;
+    var i, j, seen = {};
     for (i = 0; i < wishes.length; i++) {
-      for (j = i + 1; j < wishes.length; j++) {
+      var near = [];
+      for (j = 0; j < wishes.length; j++) {
+        if (i === j) continue;
         var dx = (wishes[i].x - wishes[j].x) * W;
         var dy = (wishes[i].y - wishes[j].y) * H;
-        if (dx * dx + dy * dy < D * D) wishEdges.push([i, j]);
+        var d2 = dx * dx + dy * dy;
+        if (d2 < D * D) near.push([d2, j]);
+      }
+      near.sort(function (a, b) { return a[0] - b[0]; });
+      for (var k = 0; k < near.length && k < 2; k++) {
+        var a = Math.min(i, near[k][1]), b = Math.max(i, near[k][1]);
+        var key = a + '-' + b;
+        if (!seen[key]) { seen[key] = true; wishEdges.push([a, b]); }
       }
     }
     // biggest connected bunch, for the potato line
@@ -1026,8 +1037,30 @@
     }
   });
 
-  fineOpen.addEventListener('click', function () { closeBox(); fine.classList.add('show'); });
+  fineOpen.addEventListener('click', function () { closeBox(); fine.classList.add('show'); resetArmed = false; resetBtn.textContent = 'start over'; });
   fineClose.addEventListener('click', function () { fine.classList.remove('show'); });
+
+  // wipe the wishes. two taps, so a stray thumb doesn't do it.
+  var resetBtn = $('reset');
+  var resetArmed = false;
+  resetBtn.addEventListener('click', function () {
+    if (!resetArmed) {
+      resetArmed = true;
+      resetBtn.textContent = 'sure? tap again.';
+      return;
+    }
+    wishes = [];
+    lastWasBig = false;
+    store(STORE, []);
+    store('melike-sky-potato', false);
+    store('melike-sky-hinted', 0);
+    rebuildEdges();
+    updateCounter();
+    resetArmed = false;
+    resetBtn.textContent = 'start over';
+    fine.classList.remove('show');
+    say('clean sky. no one saw.');
+  });
 
   // ---------------------------------------------------------------
   // loop + events

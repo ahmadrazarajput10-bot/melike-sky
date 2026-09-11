@@ -356,7 +356,15 @@ body.at-door #sky { filter: brightness(.55); cursor: default; }
 
 .fine ol { margin: 0; padding-left: 1.3em; }
 .fine li { font-size: clamp(17px, 2vw, 21px); margin-bottom: .45em; }
-.fine .link { display: block; margin: .6em auto 0; }
+.fine-row {
+  display: flex;
+  justify-content: center;
+  align-items: baseline;
+  gap: .5em;
+  margin-top: .6em;
+}
+
+.fine-row .dot { color: rgba(237, 233, 255, .3); }
 
 /* ------------------------------------------------------------ */
 /* corners                                                       */
@@ -418,4 +426,8 @@ body.whispering .corner.moon-note { opacity: 0; transition: opacity .3s ease; }
   .after .small { margin-top: .5em !important; font-size: 14px !important; }
   .after .link { margin-top: .15em; font-size: 24px; }
   .whisper { top: 12%; }
+  .fine { padding: 1em 1.4em .8em; }
+  .fine-title { font-size: 26px !important; margin-bottom: .25em !important; }
+  .fine li { font-size: 15px; margin-bottom: .2em; line-height: 1.3; }
+  .fine-row { margin-top: .4em; }
 }
