@@ -34,7 +34,7 @@
     <p>your name means <em>queen</em>. I looked it up.</p>
     <p>bit much, honestly.</p>
     <p>but fine. a queen should probably have a sky of her own.</p>
-    <p class="small">tap anywhere to add a star. every one counts as a wish.<br>hold for a bigger one. no, you can&rsquo;t wish for more wishes.</p>
+    <p class="small">tap anywhere to add a star. every one counts as a wish.<br>hold for a bigger one. tap a star you made to write the wish on it.<br>someone already left three up there. nosy? tap them.</p>
     <button id="reveal" class="link" type="button">look up &uarr;</button>
   </section>
 
@@ -51,8 +51,21 @@
     <button id="back" class="link" type="button">come back down &darr;</button>
   </section>
 
-  <!-- what a letter says when you tap it -->
+  <!-- what a letter (or the sky) says -->
   <p class="whisper" id="whisper"></p>
+
+  <!-- the little note you write on a star -->
+  <div class="wishbox" id="wishbox">
+    <p class="wishbox-title" id="wishbox-title"></p>
+    <p class="wishbox-text" id="wishbox-text" hidden></p>
+    <input id="wishbox-input" type="text" placeholder="what&rsquo;s the wish?" maxlength="120" autocomplete="off" spellcheck="false">
+    <div class="wishbox-row">
+      <button id="wishbox-keep" class="link small-link" type="button">keep</button>
+      <span class="dot" id="wishbox-dot">&middot;</span>
+      <button id="wishbox-drop" class="link small-link" type="button">let it go</button>
+      <button id="wishbox-ok" class="link small-link" type="button" hidden>ok.</button>
+    </div>
+  </div>
 
   <!-- the fine print -->
   <section class="fine" id="fine">
@@ -64,6 +77,7 @@
       <li>the constellation is not visible from earth. it&rsquo;s visible from here, which is better.</li>
       <li>the moon in the corner is the real one, tonight&rsquo;s actual phase. i checked.</li>
       <li>made by hand. one canvas, no frameworks, a questionable amount of coffee.</li>
+      <li>wishes you write are kept in your browser only. i can&rsquo;t read them. unfortunately.</li>
       <li>if you&rsquo;re not Melike and you got this far, respect.</li>
     </ol>
     <button id="fine-close" class="link small-link" type="button">ok, fine</button>

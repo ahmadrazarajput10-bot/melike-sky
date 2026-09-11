@@ -25,8 +25,17 @@
   var moonNote = $('moon-note');
   var soundBtn = $('sound');
   var entryStars = $('entry-stars');
+  var wishbox = $('wishbox');
+  var wishboxTitle = $('wishbox-title');
+  var wishboxText = $('wishbox-text');
+  var wishboxInput = $('wishbox-input');
+  var wishboxKeep = $('wishbox-keep');
+  var wishboxDrop = $('wishbox-drop');
+  var wishboxDot = $('wishbox-dot');
+  var wishboxOk = $('wishbox-ok');
 
   var inside = false;   // past the door yet?
+  var isTouch = 'ontouchstart' in window;
 
   var W = 0, H = 0, DPR = 1;
   var mouse = { x: 0.5, y: 0.5, tx: 0.5, ty: 0.5 };
@@ -37,6 +46,10 @@
   var easeOut = function (p) { return 1 - Math.pow(1 - p, 3); };
   var clamp = function (v, a, b) { return v < a ? a : v > b ? b : v; };
   var TAU = Math.PI * 2;
+
+  // performance.now shares a clock with rAF timestamps, and keeps ticking
+  // even when the tab is in the background and frames are paused
+  var clock = function () { return performance.now() / 1000; };
 
   function store(key, val) {
     try {
@@ -151,7 +164,6 @@
   var afterShown = false;
   var litLetter = -1;       // which letter got tapped
   var litAt = 0;
-  var whisperTimer = 0;
 
   function layoutTargets() {
     var maxW = W * 0.78;
@@ -185,25 +197,96 @@
   }
 
   // ---------------------------------------------------------------
-  // wishes (the stars you add by tapping / holding)
+  // the whisper line at the top. letters use it, the sky uses it.
+  // ---------------------------------------------------------------
+  var whisperTimer = 0;
+
+  function say(text, hold) {
+    whisper.textContent = text;
+    whisper.classList.add('show');
+    document.body.classList.add('whispering');   // moon note steps aside
+    clearTimeout(whisperTimer);
+    whisperTimer = setTimeout(function () {
+      whisper.classList.remove('show');
+      document.body.classList.remove('whispering');
+    }, hold || 3400);
+  }
+
+  function sayLetter(letter) {
+    litLetter = letter;
+    litAt = now;
+    say(WHISPERS[letter]);
+  }
+
+  // ---------------------------------------------------------------
+  // wishes. tap for a star, hold for a big one, tap it again to
+  // write on it. the three silver ones were already there.
   // ---------------------------------------------------------------
   var wishes = [];
   var STORE = 'melike-sky-wishes';
   var lastWasBig = false;
   var pending = null;       // the one being held down right now
+  var wishEdges = [];       // pairs of wishes close enough to join up
+  var biggestGroup = 0;
+  var sparks = [];
+  var flashes = [];
+
+  var SEEDS = [
+    { x: 0.12, y: 0.20, text: 'that you actually open this.' },
+    { x: 0.87, y: 0.64, text: 'that you don’t roll your eyes at the fine print.' },
+    { x: 0.30, y: 0.88, text: '(this one’s private.)' }
+  ];
+  var seeds = SEEDS.map(function (s, i) {
+    return { x: s.x, y: s.y, r: 1.9, born: -20, ph: i * 2.1, text: s.text, seed: true };
+  });
 
   function loadWishes() {
     var arr = store(STORE);
     if (arr && arr.length) {
       for (var i = 0; i < arr.length; i++) {
-        wishes.push({ x: arr[i][0], y: arr[i][1], r: arr[i][2] || rand(1.1, 1.9), born: -10 - i * 0.05, ph: rand(0, TAU) });
+        wishes.push({
+          x: arr[i][0], y: arr[i][1],
+          r: arr[i][2] || rand(1.1, 1.9),
+          text: arr[i][3] || '',
+          born: -10 - i * 0.05,
+          ph: rand(0, TAU)
+        });
       }
     }
+    rebuildEdges();
     updateCounter();
   }
 
   function saveWishes() {
-    store(STORE, wishes.slice(-400).map(function (w) { return [+w.x.toFixed(4), +w.y.toFixed(4), +w.r.toFixed(2)]; }));
+    store(STORE, wishes.slice(-400).map(function (w) {
+      return [+w.x.toFixed(4), +w.y.toFixed(4), +w.r.toFixed(2), w.text || ''];
+    }));
+  }
+
+  // wishes that land near each other join up into her own little constellation
+  function rebuildEdges() {
+    wishEdges = [];
+    var D = Math.min(W, H) * 0.17;
+    var i, j;
+    for (i = 0; i < wishes.length; i++) {
+      for (j = i + 1; j < wishes.length; j++) {
+        var dx = (wishes[i].x - wishes[j].x) * W;
+        var dy = (wishes[i].y - wishes[j].y) * H;
+        if (dx * dx + dy * dy < D * D) wishEdges.push([i, j]);
+      }
+    }
+    // biggest connected bunch, for the potato line
+    var parent = [];
+    for (i = 0; i < wishes.length; i++) parent[i] = i;
+    function find(a) { while (parent[a] !== a) { parent[a] = parent[parent[a]]; a = parent[a]; } return a; }
+    for (i = 0; i < wishEdges.length; i++) parent[find(wishEdges[i][0])] = find(wishEdges[i][1]);
+    var sizes = {};
+    biggestGroup = 0;
+    for (i = 0; i < wishes.length; i++) {
+      var root = find(i);
+      sizes[root] = (sizes[root] || 0) + 1;
+      if (sizes[root] > biggestGroup) biggestGroup = sizes[root];
+    }
   }
 
   function updateCounter() {
@@ -211,7 +294,7 @@
     var line;
     if (n === 0) line = 'no wishes yet. tough crowd.';
     else if (n === 1) line = 'one wish. modest.';
-    else if (n < 5) line = n + ' wishes.';
+    else if (n < 5) line = n + ' wishes.' + (wishEdges.length ? ' they’re starting to connect.' : '');
     else if (n < 10) line = n + ' wishes. getting greedy.';
     else if (n < 25) line = n + ' wishes. ok slow down.';
     else if (n < 60) line = n + ' wishes. the sky is not a vending machine.';
@@ -223,12 +306,8 @@
 
   function holdRadius(held) {
     // tap = small star, hold up to ~1.4s = big one
-    return 1.2 + easeOut(clamp(held / 1.4, 0, 1)) * 3.2;
+    return 1.6 + easeOut(clamp(held / 1.4, 0, 1)) * 3.0;
   }
-
-  // performance.now shares a clock with rAF timestamps, and keeps ticking
-  // even when the tab is in the background and frames are paused
-  var clock = function () { return performance.now() / 1000; };
 
   function beginWish(px, py) {
     pending = { x: px, y: py, t0: clock() };
@@ -238,13 +317,159 @@
     if (!pending) return;
     var held = clock() - pending.t0;
     var r = holdRadius(held);
-    wishes.push({ x: pending.x / W, y: pending.y / H, r: r, born: now, ph: rand(0, TAU) });
+    var w = { x: pending.x / W, y: pending.y / H, r: r, born: now, ph: rand(0, TAU), text: '' };
+    wishes.push(w);
+    burst(pending.x, pending.y, r);
     lastWasBig = r > 3.4;
     pending = null;
+    rebuildEdges();
     updateCounter();
     saveWishes();
     chime(r);
+
+    // one line at a time. the potato beats the milestones beats the hint.
+    var n = wishes.length;
+    var hinted = store('melike-sky-hinted') || 0;
+    if (biggestGroup >= 5 && !store('melike-sky-potato')) {
+      store('melike-sky-potato', true);
+      say('that’s a constellation now. it looks like a potato. i love it.');
+    } else if (n === 7) {
+      spawnShooter();
+      say('a real one. that’s for the seventh.');
+    } else if (n === 21) {
+      say('twenty-one. are you even wishing anymore, or just poking the sky?');
+    } else if (n === 50) {
+      say('fifty. ok. the moon says hi.');
+    } else if (n === 100) {
+      say('a hundred. genuinely impressed. slightly worried.');
+    } else if (hinted < 2) {
+      store('melike-sky-hinted', hinted + 1);
+      say('tap it to write the wish.');
+    }
   }
+
+  function burst(px, py, r) {
+    var n = 14 + Math.round(r * 4);
+    for (var i = 0; i < n; i++) {
+      var a = rand(0, TAU);
+      var sp = rand(30, 140) * (0.6 + r / 3);
+      sparks.push({ x: px, y: py, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, born: now, life: rand(0.5, 1.1), s: rand(0.5, 1.3) });
+    }
+    flashes.push({ x: px, y: py, r: 12 + r * 10, born: now });
+  }
+
+  // which star did the tap land on, if any. hers or the silver ones.
+  function wishAt(px, py) {
+    var best = null, bestD = 20;
+    var all = wishes.concat(seeds);
+    for (var i = 0; i < all.length; i++) {
+      var d = Math.hypot(all[i].x * W - px, all[i].y * H - py);
+      if (d < bestD) { bestD = d; best = all[i]; }
+    }
+    return best;
+  }
+
+  // ---------------------------------------------------------------
+  // the note box on a star
+  // ---------------------------------------------------------------
+  var openWish = null;
+
+  var REPLIES = ['noted.', 'kept.', 'the moon has been informed.', 'filed under: pending.', 'ok. that one’s a good one.', 'i’ll see what i can do.'];
+
+  function replyTo(t) {
+    var s = t.toLowerCase();
+    if (/more wish/.test(s)) return 'more wishes? i said no.';
+    if (s.length > 80) return 'that’s not a wish, that’s a paragraph. kept it anyway.';
+    if (/melike/.test(s)) return 'wishing for yourself? bold. respect.';
+    if (/sleep|nap/.test(s)) return 'granted. eventually.';
+    if (/coffee|tea|çay|chai/.test(s)) return 'granted. you know where the kettle is.';
+    if (/pizza|food|cake|chocolate|dessert|burger/.test(s)) return 'granted, probably. i’m not made of money.';
+    if (/\?$/.test(s)) return 'that’s a question, not a wish. kept it anyway.';
+    return REPLIES[Math.floor(Math.random() * REPLIES.length)];
+  }
+
+  function openBox(w, px, py) {
+    openWish = w;
+    if (w.seed) {
+      wishboxTitle.textContent = 'someone’s wish. from before you got here.';
+      wishboxText.textContent = w.text;
+      wishboxText.hidden = false;
+      wishboxInput.hidden = true;
+      wishboxKeep.hidden = true;
+      wishboxDot.hidden = true;
+      wishboxDrop.hidden = true;
+      wishboxOk.hidden = false;
+    } else {
+      var idx = wishes.indexOf(w) + 1;
+      wishboxTitle.textContent = 'wish no. ' + idx + (w.r > 3.4 ? '. the big one.' : '');
+      wishboxText.hidden = true;
+      wishboxInput.hidden = false;
+      wishboxInput.value = w.text || '';
+      wishboxKeep.hidden = false;
+      wishboxDot.hidden = false;
+      wishboxDrop.hidden = false;
+      wishboxOk.hidden = true;
+    }
+    wishbox.classList.add('show');
+    placeBox(px, py);
+    if (!w.seed) setTimeout(function () { wishboxInput.focus(); }, 40);
+  }
+
+  function placeBox(px, py) {
+    var bw = wishbox.offsetWidth, bh = wishbox.offsetHeight;
+    var left, top;
+    if (W < 600) {
+      // phones: keep it up top so the keyboard doesn't sit on it
+      left = (W - bw) / 2;
+      top = Math.max(12, H * 0.10);
+    } else {
+      left = clamp(px - bw / 2, 12, W - bw - 12);
+      top = py < H * 0.55 ? py + 26 : py - bh - 26;
+      top = clamp(top, 12, H - bh - 12);
+    }
+    wishbox.style.left = left + 'px';
+    wishbox.style.top = top + 'px';
+  }
+
+  function closeBox() {
+    if (!openWish) return;
+    openWish = null;
+    wishbox.classList.remove('show');
+    wishboxInput.blur();
+  }
+
+  function keepWish() {
+    if (!openWish || openWish.seed) return;
+    var t = wishboxInput.value.trim().slice(0, 120);
+    var changed = t !== (openWish.text || '');
+    openWish.text = t;
+    saveWishes();
+    closeBox();
+    if (t && changed) {
+      say(replyTo(t));
+      chime(1.2, true);
+    }
+  }
+
+  function dropWish() {
+    if (!openWish || openWish.seed) return;
+    var i = wishes.indexOf(openWish);
+    if (i >= 0) wishes.splice(i, 1);
+    closeBox();
+    lastWasBig = false;
+    rebuildEdges();
+    updateCounter();
+    saveWishes();
+    say('gone. no one saw.');
+  }
+
+  wishboxKeep.addEventListener('click', keepWish);
+  wishboxDrop.addEventListener('click', dropWish);
+  wishboxOk.addEventListener('click', closeBox);
+  wishboxInput.addEventListener('keydown', function (e) {
+    if (e.key === 'Enter') { e.preventDefault(); keepWish(); }
+    else if (e.key === 'Escape') { closeBox(); }
+  });
 
   // ---------------------------------------------------------------
   // a tiny chime per wish. web audio, nothing loaded.
@@ -253,18 +478,19 @@
   var soundOn = store('melike-sky-sound') !== false;
   var NOTES = [523.25, 587.33, 659.25, 783.99, 880, 1046.5];  // C major pentatonic-ish, sounds fine
 
-  function chime(r) {
+  function chime(r, soft) {
     if (!soundOn) return;
     try {
       if (!audio) audio = new (window.AudioContext || window.webkitAudioContext)();
       if (audio.state === 'suspended') audio.resume();
       var t0 = audio.currentTime;
       var big = r > 3.4;
-      var freq = NOTES[Math.floor(Math.random() * NOTES.length)] / (big ? 2 : 1);
+      var freq = NOTES[Math.floor(Math.random() * NOTES.length)] / (big || soft ? 2 : 1);
+      var len = soft ? 0.7 : big ? 2.4 : 1.3;
       var gain = audio.createGain();
       gain.gain.setValueAtTime(0.0001, t0);
-      gain.gain.exponentialRampToValueAtTime(big ? 0.09 : 0.06, t0 + 0.012);
-      gain.gain.exponentialRampToValueAtTime(0.0001, t0 + (big ? 2.4 : 1.3));
+      gain.gain.exponentialRampToValueAtTime(soft ? 0.04 : big ? 0.09 : 0.06, t0 + 0.012);
+      gain.gain.exponentialRampToValueAtTime(0.0001, t0 + len);
       gain.connect(audio.destination);
       var o1 = audio.createOscillator();
       o1.type = 'sine';
@@ -278,7 +504,7 @@
       o2.connect(g2);
       g2.connect(gain);
       o1.start(t0); o2.start(t0);
-      o1.stop(t0 + 2.6); o2.stop(t0 + 2.6);
+      o1.stop(t0 + len + 0.2); o2.stop(t0 + len + 0.2);
     } catch (e) { /* no audio, no problem */ }
   }
 
@@ -429,6 +655,11 @@
     ctx.globalAlpha = 1;
   }
 
+  function litGlow() {
+    // fades out over ~3s after a letter tap
+    return clamp(1 - (now - litAt - 2.2) / 0.8, 0, 1);
+  }
+
   function drawConstellation() {
     var i, s, p;
     var dx = (mouse.x - 0.5) * 4, dy = (mouse.y - 0.5) * 4;
@@ -493,16 +724,53 @@
     ctx.globalAlpha = 1;
   }
 
-  function litGlow() {
-    // fades out over ~3s after a letter tap
-    return clamp(1 - (now - litAt - 2.2) / 0.8, 0, 1);
-  }
-
   function drawWishes() {
-    for (var i = 0; i < wishes.length; i++) {
-      var w = wishes[i];
+    var i, w, x, y;
+
+    // the joins between neighbouring wishes
+    if (wishEdges.length) {
+      ctx.lineWidth = 1;
+      ctx.lineCap = 'round';
+      for (i = 0; i < wishEdges.length; i++) {
+        var a = wishes[wishEdges[i][0]], b = wishes[wishEdges[i][1]];
+        if (!a || !b) continue;
+        var young = Math.min(now - a.born, now - b.born);
+        ctx.globalAlpha = 0.18 * clamp(young / 1.2, 0, 1);
+        ctx.strokeStyle = '#ffe3a8';
+        ctx.beginPath();
+        ctx.moveTo(a.x * W, a.y * H);
+        ctx.lineTo(b.x * W, b.y * H);
+        ctx.stroke();
+      }
+      ctx.globalAlpha = 1;
+    }
+
+    // the three that were here first. silver, slow pulse, a ring now and then.
+    for (i = 0; i < seeds.length; i++) {
+      w = seeds[i];
+      x = w.x * W; y = w.y * H;
+      var pulse = 0.6 + 0.4 * Math.sin(now * 0.9 + w.ph);
+      var ringP = (now * 0.3 + w.ph) % 1;
+      glow(x, y, w.r * 8, 'rgba(200,215,255,0.6)', 0.5 * pulse);
+      ctx.globalAlpha = 0.22 * (1 - ringP);
+      ctx.strokeStyle = '#dfe6ff';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.arc(x, y, 7 + ringP * 16, 0, TAU);
+      ctx.stroke();
+      ctx.globalAlpha = 0.85 + 0.15 * pulse;
+      ctx.fillStyle = '#eef2ff';
+      ctx.beginPath();
+      ctx.arc(x, y, w.r, 0, TAU);
+      ctx.fill();
+    }
+    ctx.globalAlpha = 1;
+
+    // hers
+    for (i = 0; i < wishes.length; i++) {
+      w = wishes[i];
       var age = now - w.born;
-      var x = w.x * W, y = w.y * H;
+      x = w.x * W; y = w.y * H;
       var r = w.r;
       if (age < 1.2) {
         var p = clamp(age / 1.2, 0, 1);
@@ -517,18 +785,42 @@
         ctx.stroke();
       }
       var tw = 0.7 + 0.3 * Math.sin(now * 1.9 + w.ph);
-      glow(x, y, r * 6, 'rgba(255,225,170,0.55)', 0.45 * tw);
+      glow(x, y, r * 6 + 4, 'rgba(255,225,170,0.6)', 0.5 * tw);
       ctx.globalAlpha = tw;
       ctx.fillStyle = '#fff1cf';
       ctx.beginPath();
       ctx.arc(x, y, r, 0, TAU);
       ctx.fill();
+      // ones with words on them glint now and then
+      if (w.text) {
+        var g = Math.sin(now * 0.8 + w.ph);
+        if (g > 0.6) {
+          var ga = (g - 0.6) / 0.4;
+          var len = r * 4 + 5;
+          ctx.globalAlpha = ga * 0.6;
+          ctx.strokeStyle = '#fff6dc';
+          ctx.lineWidth = 0.8;
+          ctx.beginPath();
+          ctx.moveTo(x - len, y); ctx.lineTo(x + len, y);
+          ctx.moveTo(x, y - len); ctx.lineTo(x, y + len);
+          ctx.stroke();
+        }
+      }
+      // the one you're looking at right now
+      if (w === openWish) {
+        ctx.globalAlpha = 0.35 + 0.15 * Math.sin(now * 3);
+        ctx.strokeStyle = '#ffe3a8';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.arc(x, y, r + 7, 0, TAU);
+        ctx.stroke();
+      }
     }
     ctx.globalAlpha = 1;
 
     // the one being held right now
     if (pending) {
-      var held = now - pending.t0;
+      var held = clock() - pending.t0;
       var pr = holdRadius(held);
       var charge = clamp(held / 1.4, 0, 1);
       glow(pending.x, pending.y, pr * 7, 'rgba(255,225,170,0.6)', 0.35 + charge * 0.3);
@@ -546,6 +838,29 @@
       ctx.stroke();
       ctx.globalAlpha = 1;
     }
+  }
+
+  function drawSparks() {
+    var i;
+    for (i = flashes.length - 1; i >= 0; i--) {
+      var f = flashes[i];
+      var fp = (now - f.born) / 0.4;
+      if (fp >= 1) { flashes.splice(i, 1); continue; }
+      glow(f.x, f.y, f.r * (1 + fp * 1.5), 'rgba(255,238,200,0.9)', (1 - fp) * 0.6);
+    }
+    for (i = sparks.length - 1; i >= 0; i--) {
+      var k = sparks[i];
+      var age = now - k.born;
+      if (age > k.life) { sparks.splice(i, 1); continue; }
+      var p = age / k.life;
+      var d = age * (1 - p * 0.55);   // slows down as it goes
+      ctx.globalAlpha = (1 - p) * 0.9;
+      ctx.fillStyle = '#ffe7b0';
+      ctx.beginPath();
+      ctx.arc(k.x + k.vx * d, k.y + k.vy * d, k.s * (1 - p * 0.5), 0, TAU);
+      ctx.fill();
+    }
+    ctx.globalAlpha = 1;
   }
 
   function drawShooters() {
@@ -576,6 +891,7 @@
   // ---------------------------------------------------------------
   function lookUp() {
     if (state !== 'scattered') return;
+    closeBox();
     for (var i = 0; i < cstars.length; i++) { cstars[i].fx = cstars[i].px; cstars[i].fy = cstars[i].py; }
     layoutTargets();
     state = 'gathering';
@@ -586,6 +902,7 @@
 
   function comeDown() {
     if (state !== 'formed') return;
+    closeBox();
     for (var i = 0; i < cstars.length; i++) {
       cstars[i].fx = cstars[i].px; cstars[i].fy = cstars[i].py;
       cstars[i].x = rand(0.02, 0.98); cstars[i].y = rand(0.02, 0.98);
@@ -594,6 +911,7 @@
     stateAt = now;
     litLetter = -1;
     whisper.classList.remove('show');
+    document.body.classList.remove('whispering');
     after.classList.remove('show');
   }
 
@@ -624,15 +942,6 @@
     return best < 0 ? -1 : cstars[best].letter;
   }
 
-  function sayWhisper(letter) {
-    litLetter = letter;
-    litAt = now;
-    whisper.textContent = WHISPERS[letter];
-    whisper.classList.add('show');
-    clearTimeout(whisperTimer);
-    whisperTimer = setTimeout(function () { whisper.classList.remove('show'); }, 3200);
-  }
-
   // ---------------------------------------------------------------
   // the door
   // ---------------------------------------------------------------
@@ -647,9 +956,9 @@
     var h = new Date().getHours();
     var m = new Date().getMinutes();
     var hh = ((h + 11) % 12) + 1;
-    var clock = hh + ':' + (m < 10 ? '0' : '') + m + (h < 12 ? 'am' : 'pm');
+    var clockStr = hh + ':' + (m < 10 ? '0' : '') + m + (h < 12 ? 'am' : 'pm');
     var line;
-    if (h >= 23 || h < 5) line = 'it’s ' + clock + '. you should be asleep. so should i.';
+    if (h >= 23 || h < 5) line = 'it’s ' + clockStr + '. you should be asleep. so should i.';
     else if (h < 11) line = 'bit early for stars. fine.';
     else if (h < 17) line = 'stars work better at night. come back later. or don’t, i’m not your boss.';
     else line = 'good timing. it’s getting dark.';
@@ -717,7 +1026,7 @@
     }
   });
 
-  fineOpen.addEventListener('click', function () { fine.classList.add('show'); });
+  fineOpen.addEventListener('click', function () { closeBox(); fine.classList.add('show'); });
   fineClose.addEventListener('click', function () { fine.classList.remove('show'); });
 
   // ---------------------------------------------------------------
@@ -736,6 +1045,7 @@
     drawMoon();
     drawShooters();
     drawWishes();
+    drawSparks();
     drawConstellation();
 
     requestAnimationFrame(frame);
@@ -752,6 +1062,8 @@
     ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
     seedStars();
     if (cstars.length) layoutTargets(); else seedConstellation();
+    rebuildEdges();
+    closeBox();
   }
 
   window.addEventListener('resize', resize);
@@ -764,8 +1076,11 @@
   canvas.addEventListener('pointerdown', function (e) {
     if (!inside) return;
     if (fine.classList.contains('show')) { fine.classList.remove('show'); return; }
+    if (openWish) { closeBox(); return; }
     var letter = letterAt(e.clientX, e.clientY);
-    if (letter >= 0) { sayWhisper(letter); return; }
+    if (letter >= 0) { sayLetter(letter); return; }
+    var w = wishAt(e.clientX, e.clientY);
+    if (w) { openBox(w, e.clientX, e.clientY); return; }
     beginWish(e.clientX, e.clientY);
   });
 
@@ -777,8 +1092,8 @@
   backBtn.addEventListener('click', comeDown);
 
   window.addEventListener('keydown', function (e) {
-    if (!inside || e.target === doorInput) return;
-    if (e.key === 'Escape') { fine.classList.remove('show'); return; }
+    if (!inside || e.target === doorInput || e.target === wishboxInput) return;
+    if (e.key === 'Escape') { fine.classList.remove('show'); closeBox(); return; }
     if (e.key === ' ' || e.key === 'Enter') {
       if (state === 'scattered') lookUp();
       else if (state === 'formed') comeDown();
@@ -796,5 +1111,5 @@
   renderSoundBtn();
   requestAnimationFrame(frame);
   // no autofocus on phones, the keyboard jumping up is annoying
-  if (!('ontouchstart' in window)) setTimeout(function () { doorInput.focus(); }, 600);
+  if (!isTouch) setTimeout(function () { doorInput.focus(); }, 600);
 })();

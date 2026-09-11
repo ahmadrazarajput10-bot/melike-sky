@@ -259,6 +259,66 @@ body.at-door #sky { filter: brightness(.55); cursor: default; }
   transform: translate(-50%, -6px) rotate(-0.8deg);
 }
 
+/* the note you write on a star */
+.wishbox {
+  position: fixed;
+  display: none;
+  z-index: 5;
+  width: min(88vw, 290px);
+  padding: .8em 1em .6em;
+  background: rgba(7, 11, 30, .9);
+  border: 1px solid rgba(237, 233, 255, .14);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  text-align: center;
+  transform: rotate(-0.6deg);
+}
+
+.wishbox.show { display: block; animation: pop .3s ease; }
+
+.wishbox-title {
+  font-family: var(--hand);
+  font-size: 22px;
+  color: var(--dim);
+  margin: 0 0 .25em;
+  line-height: 1.2;
+}
+
+.wishbox-text {
+  font-style: italic;
+  font-size: 19px;
+  line-height: 1.35;
+  margin: .1em 0 .3em;
+  color: var(--ink);
+}
+
+#wishbox-input {
+  width: 100%;
+  background: transparent;
+  border: 0;
+  border-bottom: 1px solid rgba(237, 233, 255, .35);
+  color: var(--ink);
+  font: 400 19px var(--serif);
+  text-align: center;
+  padding: .2em .3em;
+  outline: none;
+  caret-color: #ffe3a8;
+}
+
+#wishbox-input:focus { border-bottom-color: rgba(237, 233, 255, .8); }
+#wishbox-input::placeholder { color: rgba(237, 233, 255, .3); font-style: italic; }
+
+.wishbox-row {
+  display: flex;
+  justify-content: center;
+  align-items: baseline;
+  gap: .4em;
+  margin-top: .35em;
+}
+
+.wishbox-row .dot { color: rgba(237, 233, 255, .3); }
+.wishbox .small-link { font-size: 20px; }
+
 /* ------------------------------------------------------------ */
 /* the fine print                                                */
 /* ------------------------------------------------------------ */
@@ -337,6 +397,8 @@ body.at-door #sky { filter: brightness(.55); cursor: default; }
 body.at-door .corner.left,
 body.at-door .corner.right,
 body.at-door .corner.moon-note { opacity: 0; pointer-events: none; }
+
+body.whispering .corner.moon-note { opacity: 0; transition: opacity .3s ease; }
 
 @media (max-width: 600px) {
   .note { transform: translate(-50%, -54%) rotate(-1.4deg); }
