@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>a sky for melike</title>
+  <meta name="description" content="a small night sky, made for one person. not you, probably.">
+  <meta name="theme-color" content="#070b1e">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cpath d='M16 3l3.2 8.6L28 12l-6.6 5.6L23.6 27 16 22.2 8.4 27l2.2-9.4L4 12l8.8-.4z' fill='%23f3efd9'/%3E%3C/svg%3E">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Caveat:wght@400;600&family=Cormorant+Garamond:ital,wght@0,400;0,500;1,400&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body class="at-door">
+  <canvas id="sky"></canvas>
+
+  <!-- scene 1: the door -->
+  <section class="door" id="door">
+    <p class="door-line">this isn&rsquo;t for you.</p>
+    <p class="door-line">unless you&rsquo;re Melike.</p>
+    <p class="door-time" id="door-time"></p>
+    <form class="door-form" id="door-form" autocomplete="off">
+      <label for="who" class="door-label">prove it.</label>
+      <input id="who" name="who" type="text" placeholder="your name" maxlength="40" spellcheck="false" autocapitalize="off">
+      <button type="submit" class="link">knock</button>
+    </form>
+    <p class="door-reply" id="door-reply" aria-live="polite"></p>
+  </section>
+
+  <!-- scene 2: the note -->
+  <section class="note hidden" id="note">
+    <p class="hi">Melike,</p>
+    <p>your name means <em>queen</em>. I looked it up.</p>
+    <p>bit much, honestly.</p>
+    <p>but fine. a queen should probably have a sky of her own.</p>
+    <p class="small">tap anywhere to add a star. every one counts as a wish.<br>hold for a bigger one. no, you can&rsquo;t wish for more wishes.</p>
+    <button id="reveal" class="link" type="button">look up &uarr;</button>
+  </section>
+
+  <!-- scene 3: after the constellation -->
+  <section class="after" id="after">
+    <p>there. that one&rsquo;s yours.</p>
+    <dl class="entry">
+      <div><dt>constellation</dt><dd>Melike</dd></div>
+      <div><dt>stars</dt><dd id="entry-stars">&ndash;</dd></div>
+      <div><dt>visible from</dt><dd>here. only here.</dd></div>
+      <div><dt>discovered</dt><dd>recently. still studying it.</dd></div>
+    </dl>
+    <p class="small">don&rsquo;t let it go to your head.<br>psst. tap a letter.</p>
+    <button id="back" class="link" type="button">come back down &darr;</button>
+  </section>
+
+  <!-- what a letter says when you tap it -->
+  <p class="whisper" id="whisper"></p>
+
+  <!-- the fine print -->
+  <section class="fine" id="fine">
+    <p class="fine-title">the fine print</p>
+    <ol>
+      <li>this sky is non-refundable.</li>
+      <li>stars may not be transferred to other queens.</li>
+      <li>wishes are processed in the order received. eventually.</li>
+      <li>the constellation is not visible from earth. it&rsquo;s visible from here, which is better.</li>
+      <li>the moon in the corner is the real one, tonight&rsquo;s actual phase. i checked.</li>
+      <li>made by hand. one canvas, no frameworks, a questionable amount of coffee.</li>
+      <li>if you&rsquo;re not Melike and you got this far, respect.</li>
+    </ol>
+    <button id="fine-close" class="link small-link" type="button">ok, fine</button>
+  </section>
+
+  <div class="corner left" id="wishes"></div>
+  <div class="corner moon-note" id="moon-note"></div>
+  <div class="corner right">
+    <button class="link small-link" id="sound" type="button">sound: on</button>
+    <span class="dot">&middot;</span>
+    <button class="link small-link" id="fine-open" type="button">the fine print</button>
+  </div>
+
+  <script src="sky.js"></script>
+</body>
+</html>
