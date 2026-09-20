@@ -21,8 +21,8 @@
     <p class="door-line">unless you&rsquo;re Melike.</p>
     <p class="door-time" id="door-time"></p>
     <form class="door-form" id="door-form" autocomplete="off">
-      <label for="who" class="door-label">prove it.</label>
-      <input id="who" name="who" type="text" placeholder="your name" maxlength="40" spellcheck="false" autocapitalize="off">
+      <label for="who" class="door-label" id="door-label">prove it.</label>
+      <input id="who" name="who" type="text" placeholder="your name" maxlength="40" spellcheck="false" autocapitalize="off" enterkeyhint="go">
       <button type="submit" class="link">knock</button>
     </form>
     <p class="door-reply" id="door-reply" aria-live="polite"></p>
@@ -30,24 +30,34 @@
 
   <!-- scene 2: the note -->
   <section class="note hidden" id="note">
-    <p class="hi">Melike,</p>
-    <p>your name means <em>queen</em>. I looked it up.</p>
-    <p>bit much, honestly.</p>
-    <p>but fine. a queen should probably have a sky of her own.</p>
-    <p class="small">tap anywhere to add a star. every one counts as a wish.<br>hold for a bigger one. tap a star you made to write the wish on it.<br>someone already left three up there. nosy? tap them.</p>
+    <div class="normal-only">
+      <p class="hi">Melike,</p>
+      <p>your name means <em>queen</em>. I looked it up, a while ago now.</p>
+      <p>this is the last one. I&rsquo;m not making any more of these.</p>
+      <p>but this one stays up. the stars didn&rsquo;t get the memo.</p>
+      <p class="small">tap anywhere to add a star. every one still counts as a wish.<br>hold for a bigger one. tap a star you made to write the wish on it.<br>three were left up there a while ago. nosy? tap them.</p>
+    </div>
+    <div class="bday-only">
+      <p class="hi">happy birthday, Melike.</p>
+      <p>this is still the last one.</p>
+      <p>but the sky didn&rsquo;t forget the date. neither did I.</p>
+      <p>make a wish. today they count double. that&rsquo;s the rule.</p>
+      <p class="small">tap anywhere to add a star. hold for a bigger one.<br>tap a star you made to write the wish on it.</p>
+    </div>
     <button id="reveal" class="link" type="button">look up &uarr;</button>
   </section>
 
   <!-- scene 3: after the constellation -->
   <section class="after" id="after">
-    <p>there. that one&rsquo;s yours.</p>
+    <p>there. that one&rsquo;s still yours.</p>
     <dl class="entry">
       <div><dt>constellation</dt><dd>Melike</dd></div>
       <div><dt>stars</dt><dd id="entry-stars">&ndash;</dd></div>
       <div><dt>visible from</dt><dd>here. only here.</dd></div>
-      <div><dt>discovered</dt><dd>recently. still studying it.</dd></div>
+      <div><dt>discovered</dt><dd>a while ago. still there.</dd></div>
+      <div><dt>status</dt><dd>permanent. I checked.</dd></div>
     </dl>
-    <p class="small">don&rsquo;t let it go to your head.<br>psst. tap a letter.</p>
+    <p class="small">it stays. that&rsquo;s the whole point of a constellation.<br>psst. tap a letter.</p>
     <button id="back" class="link" type="button">come back down &darr;</button>
   </section>
 
@@ -58,7 +68,7 @@
   <div class="wishbox" id="wishbox">
     <p class="wishbox-title" id="wishbox-title"></p>
     <p class="wishbox-text" id="wishbox-text" hidden></p>
-    <input id="wishbox-input" type="text" placeholder="what&rsquo;s the wish?" maxlength="120" autocomplete="off" spellcheck="false">
+    <input id="wishbox-input" type="text" placeholder="what&rsquo;s the wish?" maxlength="120" autocomplete="off" spellcheck="false" enterkeyhint="done">
     <div class="wishbox-row">
       <button id="wishbox-keep" class="link small-link" type="button">keep</button>
       <span class="dot" id="wishbox-dot">&middot;</span>
@@ -76,8 +86,10 @@
       <li>wishes are processed in the order received. eventually.</li>
       <li>the constellation is not visible from earth. it&rsquo;s visible from here, which is better.</li>
       <li>the moon in the corner is the real one, tonight&rsquo;s actual phase. i checked.</li>
+      <li>the countdown in the other corner is also real. june 7 does something. you&rsquo;ll see.</li>
       <li>made by hand. one canvas, no frameworks, a questionable amount of coffee.</li>
       <li>wishes you write are kept in your browser only. i can&rsquo;t read them. unfortunately.</li>
+      <li>this is the last one. it stays up anyway. i&rsquo;m not the type to take things down.</li>
       <li>if you&rsquo;re not Melike and you got this far, respect.</li>
     </ol>
     <div class="fine-row">
@@ -87,6 +99,7 @@
     </div>
   </section>
 
+  <div class="corner bday" id="bday"></div>
   <div class="corner left" id="wishes"></div>
   <div class="corner moon-note" id="moon-note"></div>
   <div class="corner right">

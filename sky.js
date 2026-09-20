@@ -18,11 +18,13 @@
   var doorInput = $('who');
   var doorReply = $('door-reply');
   var doorTime = $('door-time');
+  var doorLabel = $('door-label');
   var fine = $('fine');
   var fineOpen = $('fine-open');
   var fineClose = $('fine-close');
   var whisper = $('whisper');
   var moonNote = $('moon-note');
+  var bdayEl = $('bday');
   var soundBtn = $('sound');
   var entryStars = $('entry-stars');
   var wishbox = $('wishbox');
@@ -35,6 +37,7 @@
   var wishboxOk = $('wishbox-ok');
 
   var inside = false;   // past the door yet?
+  var enteredAt = 0;
   var isTouch = 'ontouchstart' in window;
 
   var W = 0, H = 0, DPR = 1;
@@ -59,6 +62,57 @@
   }
 
   // ---------------------------------------------------------------
+  // june 7. the countdown is real, the day is special.
+  // add ?when=2027-06-07 to the url to see what the day looks like.
+  // ---------------------------------------------------------------
+  var BDAY_MONTH = 5;   // june, zero-based because javascript
+  var BDAY_DAY = 7;
+  var fakeOffset = 0;
+
+  (function () {
+    var m = /[?&]when=(\d{4})-(\d{2})-(\d{2})/.exec(location.search);
+    if (m) {
+      var pretend = new Date(+m[1], +m[2] - 1, +m[3], 12, 0, 0);
+      fakeOffset = pretend.getTime() - Date.now();
+    }
+  })();
+
+  function today() { return new Date(Date.now() + fakeOffset); }
+
+  var birthday = (function () {
+    var d = today();
+    return d.getMonth() === BDAY_MONTH && d.getDate() === BDAY_DAY;
+  })();
+
+  function nextBirthday() {
+    var d = today();
+    var y = d.getFullYear();
+    var next = new Date(y, BDAY_MONTH, BDAY_DAY, 0, 0, 0);
+    if (next.getTime() <= d.getTime()) next = new Date(y + 1, BDAY_MONTH, BDAY_DAY, 0, 0, 0);
+    return next;
+  }
+
+  function pad(n) { return (n < 10 ? '0' : '') + n; }
+
+  function tickCountdown() {
+    if (birthday) {
+      bdayEl.textContent = 'it’s june 7.\nhappy birthday, Melike.';
+      return;
+    }
+    var ms = nextBirthday().getTime() - today().getTime();
+    var s = Math.max(0, Math.floor(ms / 1000));
+    var days = Math.floor(s / 86400);
+    var h = Math.floor((s % 86400) / 3600);
+    var mnt = Math.floor((s % 3600) / 60);
+    var sec = s % 60;
+    var line;
+    if (days === 0) line = h + 'h ' + pad(mnt) + 'm ' + pad(sec) + 's till june 7.\nalmost.';
+    else if (days === 1) line = '1 day, ' + h + 'h ' + pad(mnt) + 'm ' + pad(sec) + 's\ntill june 7. tomorrow, then.';
+    else line = days + ' days, ' + h + 'h ' + pad(mnt) + 'm ' + pad(sec) + 's\ntill june 7. not that i’m counting.';
+    bdayEl.textContent = line;
+  }
+
+  // ---------------------------------------------------------------
   // background stars, three layers for a bit of parallax
   // ---------------------------------------------------------------
   var layers = [];
@@ -76,7 +130,7 @@
           r: rand(0.35, 0.75 + l * 0.45),
           ph: rand(0, TAU),
           sp: rand(0.6, 2.2),
-          warm: Math.random() < 0.16
+          warm: Math.random() < (birthday ? 0.4 : 0.16)   // a bit more gold on the day
         });
       }
       layers.push(arr);
@@ -102,7 +156,7 @@
     'M. the first one. took three tries to get the angle right.',
     'E. there are two of these. the second one came out better. don’t tell this one.',
     'L. three stars. easiest letter. still counts.',
-    'I. one line. minimalist. like your texts.',
+    'I. one line. the easiest, and somehow the one i got wrong twice.',
     'K. the tricky one. three strokes. worth it.',
     'E. told you. slightly better.'
   ];
@@ -232,9 +286,9 @@
   var flashes = [];
 
   var SEEDS = [
-    { x: 0.12, y: 0.20, text: 'that you actually open this.' },
-    { x: 0.87, y: 0.64, text: 'that you don’t roll your eyes at the fine print.' },
-    { x: 0.30, y: 0.88, text: '(this one’s private.)' }
+    { x: 0.12, y: 0.20, text: 'that you actually opened this.' },
+    { x: 0.87, y: 0.64, text: 'that you’re doing alright. genuinely.' },
+    { x: 0.30, y: 0.88, text: '(this one’s still private.)' }
   ];
   var seeds = SEEDS.map(function (s, i) {
     return { x: s.x, y: s.y, r: 1.9, born: -20, ph: i * 2.1, text: s.text, seed: true };
@@ -311,6 +365,7 @@
     else if (n < 60) line = n + ' wishes. the sky is not a vending machine.';
     else if (n < 100) line = n + ' wishes. i am not made of stars, you know.';
     else line = n + ' wishes. reporting you to the moon.';
+    if (birthday && n > 0) line += ' birthday ones count double. rule.';
     if (lastWasBig) line += ' that last one was big. what did you wish for?';
     wishesEl.textContent = line;
   }
@@ -330,7 +385,7 @@
     var r = holdRadius(held);
     var w = { x: pending.x / W, y: pending.y / H, r: r, born: now, ph: rand(0, TAU), text: '' };
     wishes.push(w);
-    burst(pending.x, pending.y, r);
+    burst(pending.x, pending.y, birthday ? r + 1.5 : r, birthday && Math.random() < 0.5 ? 'silver' : 'gold');
     lastWasBig = r > 3.4;
     pending = null;
     rebuildEdges();
@@ -359,19 +414,19 @@
     }
   }
 
-  function burst(px, py, r) {
+  function burst(px, py, r, tint) {
     var n = 14 + Math.round(r * 4);
     for (var i = 0; i < n; i++) {
       var a = rand(0, TAU);
       var sp = rand(30, 140) * (0.6 + r / 3);
-      sparks.push({ x: px, y: py, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, born: now, life: rand(0.5, 1.1), s: rand(0.5, 1.3) });
+      sparks.push({ x: px, y: py, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, born: now, life: rand(0.5, 1.1), s: rand(0.5, 1.3), tint: tint || 'gold' });
     }
-    flashes.push({ x: px, y: py, r: 12 + r * 10, born: now });
+    flashes.push({ x: px, y: py, r: 12 + r * 10, born: now, tint: tint || 'gold' });
   }
 
   // which star did the tap land on, if any. hers or the silver ones.
   function wishAt(px, py) {
-    var best = null, bestD = 20;
+    var best = null, bestD = isTouch ? 24 : 20;
     var all = wishes.concat(seeds);
     for (var i = 0; i < all.length; i++) {
       var d = Math.hypot(all[i].x * W - px, all[i].y * H - py);
@@ -396,13 +451,14 @@
     if (/coffee|tea|çay|chai/.test(s)) return 'granted. you know where the kettle is.';
     if (/pizza|food|cake|chocolate|dessert|burger/.test(s)) return 'granted, probably. i’m not made of money.';
     if (/\?$/.test(s)) return 'that’s a question, not a wish. kept it anyway.';
+    if (birthday) return 'birthday wish. those go to the front of the queue.';
     return REPLIES[Math.floor(Math.random() * REPLIES.length)];
   }
 
   function openBox(w, px, py) {
     openWish = w;
     if (w.seed) {
-      wishboxTitle.textContent = 'someone’s wish. from before you got here.';
+      wishboxTitle.textContent = 'someone’s wish. from a while ago.';
       wishboxText.textContent = w.text;
       wishboxText.hidden = false;
       wishboxInput.hidden = true;
@@ -489,34 +545,51 @@
   var soundOn = store('melike-sky-sound') !== false;
   var NOTES = [523.25, 587.33, 659.25, 783.99, 880, 1046.5];  // C major pentatonic-ish, sounds fine
 
+  function tone(freq, when, len, vol) {
+    var gain = audio.createGain();
+    gain.gain.setValueAtTime(0.0001, when);
+    gain.gain.exponentialRampToValueAtTime(vol, when + 0.012);
+    gain.gain.exponentialRampToValueAtTime(0.0001, when + len);
+    gain.connect(audio.destination);
+    var o1 = audio.createOscillator();
+    o1.type = 'sine';
+    o1.frequency.value = freq;
+    var o2 = audio.createOscillator();
+    o2.type = 'sine';
+    o2.frequency.value = freq * 2.003;   // slightly off, for shimmer
+    var g2 = audio.createGain();
+    g2.gain.value = 0.25;
+    o1.connect(gain);
+    o2.connect(g2);
+    g2.connect(gain);
+    o1.start(when); o2.start(when);
+    o1.stop(when + len + 0.2); o2.stop(when + len + 0.2);
+  }
+
+  function ensureAudio() {
+    if (!audio) audio = new (window.AudioContext || window.webkitAudioContext)();
+    if (audio.state === 'suspended') audio.resume();
+  }
+
   function chime(r, soft) {
     if (!soundOn) return;
     try {
-      if (!audio) audio = new (window.AudioContext || window.webkitAudioContext)();
-      if (audio.state === 'suspended') audio.resume();
-      var t0 = audio.currentTime;
+      ensureAudio();
       var big = r > 3.4;
       var freq = NOTES[Math.floor(Math.random() * NOTES.length)] / (big || soft ? 2 : 1);
-      var len = soft ? 0.7 : big ? 2.4 : 1.3;
-      var gain = audio.createGain();
-      gain.gain.setValueAtTime(0.0001, t0);
-      gain.gain.exponentialRampToValueAtTime(soft ? 0.04 : big ? 0.09 : 0.06, t0 + 0.012);
-      gain.gain.exponentialRampToValueAtTime(0.0001, t0 + len);
-      gain.connect(audio.destination);
-      var o1 = audio.createOscillator();
-      o1.type = 'sine';
-      o1.frequency.value = freq;
-      var o2 = audio.createOscillator();
-      o2.type = 'sine';
-      o2.frequency.value = freq * 2.003;   // slightly off, for shimmer
-      var g2 = audio.createGain();
-      g2.gain.value = 0.25;
-      o1.connect(gain);
-      o2.connect(g2);
-      g2.connect(gain);
-      o1.start(t0); o2.start(t0);
-      o1.stop(t0 + len + 0.2); o2.stop(t0 + len + 0.2);
+      tone(freq, audio.currentTime, soft ? 0.7 : big ? 2.4 : 1.3, soft ? 0.04 : big ? 0.09 : 0.06);
     } catch (e) { /* no audio, no problem */ }
+  }
+
+  // a little climbing figure. only on the day.
+  function fanfare() {
+    if (!soundOn) return;
+    try {
+      ensureAudio();
+      var t0 = audio.currentTime;
+      var seq = [523.25, 659.25, 783.99, 1046.5];
+      for (var i = 0; i < seq.length; i++) tone(seq[i], t0 + i * 0.16, 1.6, 0.05);
+    } catch (e) {}
   }
 
   function renderSoundBtn() {
@@ -538,7 +611,7 @@
   function computeMoon() {
     // known new moon: 2000-01-06 18:14 utc. synodic month 29.530588853 days.
     var ref = Date.UTC(2000, 0, 6, 18, 14);
-    var days = (Date.now() - ref) / 86400000;
+    var days = (today().getTime() - ref) / 86400000;
     var p = (days / 29.530588853) % 1;
     if (p < 0) p += 1;
     moon.phase = p;
@@ -548,8 +621,9 @@
 
     var pct = Math.round(moon.lit * 100);
     var line;
-    if (moon.name === 'full') line = 'full moon tonight. i did not plan that. i’m taking credit anyway.';
-    else if (moon.name === 'new') line = 'new moon tonight. so it’s just us and the stars. convenient.';
+    if (birthday) line = moon.name === 'full' ? 'full moon on your birthday. i’d like to say i arranged that.' : 'the moon is ' + pct + '% lit tonight. it tried its best for you.';
+    else if (moon.name === 'full') line = 'full moon tonight. i did not plan that. i’m taking credit anyway.';
+    else if (moon.name === 'new') line = 'new moon tonight. so it’s just the stars. convenient.';
     else line = moon.name + ', ' + pct + '% lit. not that you asked.';
     moonNote.textContent = line;
   }
@@ -592,10 +666,11 @@
   }
 
   // ---------------------------------------------------------------
-  // shooting stars, every so often
+  // shooting stars, every so often. a lot more often on the day.
   // ---------------------------------------------------------------
   var shooters = [];
   var nextShooter = 2.5;
+  var nextFirework = 0;
 
   function spawnShooter() {
     var fromLeft = Math.random() < 0.5;
@@ -610,27 +685,67 @@
       life: rand(0.55, 0.9),
       len: rand(90, 170)
     });
-    nextShooter = now + rand(6, 14);
+    if (birthday && inside) {
+      // a shower for the first minute, then a steady trickle all day
+      nextShooter = now + (now - enteredAt < 60 ? rand(0.3, 1.1) : rand(2, 5));
+    } else {
+      nextShooter = now + rand(6, 14);
+    }
+  }
+
+  // distant fireworks. only on the day.
+  function spawnFirework() {
+    var px = rand(0.1, 0.9) * W;
+    var py = rand(0.08, 0.55) * H;
+    burst(px, py, rand(3, 5), Math.random() < 0.5 ? 'gold' : 'silver');
+    nextFirework = now + rand(1.5, 4);
   }
 
   // ---------------------------------------------------------------
-  // drawing
+  // drawing. gradients are cached, phones did not enjoy making
+  // sixty of them per frame.
   // ---------------------------------------------------------------
-  function drawSky() {
-    var g = ctx.createLinearGradient(0, 0, 0, H);
-    g.addColorStop(0, '#05081a');
-    g.addColorStop(0.55, '#0c1230');
-    g.addColorStop(1, '#1c1a3c');
-    ctx.fillStyle = g;
-    ctx.fillRect(0, 0, W, H);
+  var skyGrad = null, bandGrad = null;
+  var glowCache = {};
 
+  function buildGradients() {
+    skyGrad = ctx.createLinearGradient(0, 0, 0, H);
+    skyGrad.addColorStop(0, '#05081a');
+    skyGrad.addColorStop(0.55, '#0c1230');
+    skyGrad.addColorStop(1, '#1c1a3c');
     // faint milky way-ish band. subtle. you only notice it if you look for it.
-    var band = ctx.createLinearGradient(W * 0.1, H, W * 0.9, 0);
-    band.addColorStop(0, 'rgba(120,130,200,0)');
-    band.addColorStop(0.45, 'rgba(120,130,200,0.045)');
-    band.addColorStop(0.55, 'rgba(160,150,210,0.055)');
-    band.addColorStop(1, 'rgba(120,130,200,0)');
-    ctx.fillStyle = band;
+    bandGrad = ctx.createLinearGradient(W * 0.1, H, W * 0.9, 0);
+    bandGrad.addColorStop(0, 'rgba(120,130,200,0)');
+    bandGrad.addColorStop(0.45, 'rgba(120,130,200,0.045)');
+    bandGrad.addColorStop(0.55, 'rgba(160,150,210,0.055)');
+    bandGrad.addColorStop(1, 'rgba(120,130,200,0)');
+  }
+
+  function glowSprite(color) {
+    var sp = glowCache[color];
+    if (sp) return sp;
+    sp = document.createElement('canvas');
+    sp.width = sp.height = 64;
+    var c = sp.getContext('2d');
+    var g = c.createRadialGradient(32, 32, 0, 32, 32, 32);
+    g.addColorStop(0, color);
+    g.addColorStop(1, 'rgba(255,255,255,0)');
+    c.fillStyle = g;
+    c.fillRect(0, 0, 64, 64);
+    glowCache[color] = sp;
+    return sp;
+  }
+
+  function glow(x, y, r, color, alpha) {
+    ctx.globalAlpha = alpha;
+    ctx.drawImage(glowSprite(color), x - r, y - r, r * 2, r * 2);
+    ctx.globalAlpha = 1;
+  }
+
+  function drawSky() {
+    ctx.fillStyle = skyGrad;
+    ctx.fillRect(0, 0, W, H);
+    ctx.fillStyle = bandGrad;
     ctx.fillRect(0, 0, W, H);
   }
 
@@ -651,18 +766,6 @@
         ctx.fill();
       }
     }
-    ctx.globalAlpha = 1;
-  }
-
-  function glow(x, y, r, color, alpha) {
-    var g = ctx.createRadialGradient(x, y, 0, x, y, r);
-    g.addColorStop(0, color);
-    g.addColorStop(1, 'rgba(255,255,255,0)');
-    ctx.globalAlpha = alpha;
-    ctx.fillStyle = g;
-    ctx.beginPath();
-    ctx.arc(x, y, r, 0, TAU);
-    ctx.fill();
     ctx.globalAlpha = 1;
   }
 
@@ -720,12 +823,13 @@
     }
 
     // the stars themselves
+    var starColor = birthday ? 'rgba(255,236,200,0.6)' : 'rgba(200,210,255,0.55)';
     for (i = 0; i < cstars.length; i++) {
       s = cstars[i];
       var bright = state === 'formed' ? 1 : 0.8;
       var tw = 0.75 + 0.25 * Math.sin(now * 1.6 + s.ph);
       var extra = (state === 'formed' && s.letter === litLetter) ? litGlow() : 0;
-      glow(s.px, s.py, s.r * (7 + extra * 6), 'rgba(200,210,255,0.55)', (0.5 + extra * 0.4) * tw * bright);
+      glow(s.px, s.py, s.r * (7 + extra * 6), starColor, (0.5 + extra * 0.4) * tw * bright);
       ctx.globalAlpha = Math.min(1, tw * bright + extra * 0.3);
       ctx.fillStyle = extra > 0 ? '#fff6dc' : '#fbfbff';
       ctx.beginPath();
@@ -857,7 +961,7 @@
       var f = flashes[i];
       var fp = (now - f.born) / 0.4;
       if (fp >= 1) { flashes.splice(i, 1); continue; }
-      glow(f.x, f.y, f.r * (1 + fp * 1.5), 'rgba(255,238,200,0.9)', (1 - fp) * 0.6);
+      glow(f.x, f.y, f.r * (1 + fp * 1.5), f.tint === 'silver' ? 'rgba(225,232,255,0.9)' : 'rgba(255,238,200,0.9)', (1 - fp) * 0.6);
     }
     for (i = sparks.length - 1; i >= 0; i--) {
       var k = sparks[i];
@@ -866,7 +970,7 @@
       var p = age / k.life;
       var d = age * (1 - p * 0.55);   // slows down as it goes
       ctx.globalAlpha = (1 - p) * 0.9;
-      ctx.fillStyle = '#ffe7b0';
+      ctx.fillStyle = k.tint === 'silver' ? '#e6ecff' : '#ffe7b0';
       ctx.beginPath();
       ctx.arc(k.x + k.vx * d, k.y + k.vy * d, k.s * (1 - p * 0.5), 0, TAU);
       ctx.fill();
@@ -945,7 +1049,7 @@
   // did the tap land on one of the constellation stars?
   function letterAt(px, py) {
     if (state !== 'formed') return -1;
-    var best = -1, bestD = 26;
+    var best = -1, bestD = isTouch ? 30 : 26;
     for (var i = 0; i < cstars.length; i++) {
       var d = Math.hypot(cstars[i].px - px, cstars[i].py - py);
       if (d < bestD) { bestD = d; best = i; }
@@ -964,8 +1068,9 @@
   ];
 
   function doorGreeting() {
-    var h = new Date().getHours();
-    var m = new Date().getMinutes();
+    var d = today();
+    var h = d.getHours();
+    var m = d.getMinutes();
     var hh = ((h + 11) % 12) + 1;
     var clockStr = hh + ':' + (m < 10 ? '0' : '') + m + (h < 12 ? 'am' : 'pm');
     var line;
@@ -978,11 +1083,18 @@
     store('melike-sky-visits', visits);
     if (visits === 2) line = 'back again? ' + line;
     else if (visits > 2) line = 'visit no. ' + visits + '. i’m counting. ' + line;
+
+    if (birthday) {
+      line = 'it’s june 7. no password today.';
+      doorLabel.textContent = 'just knock.';
+      doorInput.placeholder = 'anything works today';
+    }
     doorTime.textContent = line;
   }
 
   function letIn(greeting) {
     inside = true;
+    enteredAt = now;
     doorReply.textContent = greeting;
     doorReply.classList.remove('pop');
     void doorReply.offsetWidth;
@@ -996,12 +1108,22 @@
       note.classList.remove('hidden');
       updateCounter();
     }, 1700);
+    if (birthday) {
+      nextShooter = now + 1.2;
+      nextFirework = now + 2.5;
+      setTimeout(fanfare, 1000);
+      setTimeout(function () { say('the sky’s yours today. it always was, but today it’s official.', 5000); }, 4200);
+    }
   }
 
   doorForm.addEventListener('submit', function (e) {
     e.preventDefault();
     if (inside) return;
     var who = doorInput.value.trim().toLowerCase();
+    if (birthday) {
+      letIn('happy birthday. get in.');
+      return;
+    }
     // turkish keyboards, typos, whatever. be generous.
     var isHer = who.replace(/[^a-z]/g, '').indexOf('melike') !== -1 || who === 'melik';
     if (isHer) {
@@ -1071,6 +1193,7 @@
     mouse.y += (mouse.ty - mouse.y) * 0.05;
 
     if (now > nextShooter) spawnShooter();
+    if (birthday && inside && now > nextFirework) spawnFirework();
     tickState();
 
     drawSky();
@@ -1084,27 +1207,38 @@
     requestAnimationFrame(frame);
   }
 
+  var lastW = 0, lastH = 0;
+
   function resize() {
+    var w = window.innerWidth, h = window.innerHeight;
+    var typing = document.activeElement && document.activeElement.tagName === 'INPUT';
+    // a phone keyboard opening only changes the height. leave everything
+    // where it is or the box you're typing in jumps around and closes.
+    if (typing && w === lastW) return;
+    var fresh = w !== lastW || Math.abs(h - lastH) > lastH * 0.35;
+    lastW = w; lastH = h;
     DPR = Math.min(window.devicePixelRatio || 1, 2);
-    W = window.innerWidth;
-    H = window.innerHeight;
+    W = w; H = h;
     canvas.width = Math.round(W * DPR);
     canvas.height = Math.round(H * DPR);
     canvas.style.width = W + 'px';
     canvas.style.height = H + 'px';
     ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
-    seedStars();
+    buildGradients();
+    if (fresh || !layers.length) seedStars();
     if (cstars.length) layoutTargets(); else seedConstellation();
     rebuildEdges();
-    closeBox();
   }
 
   window.addEventListener('resize', resize);
+  window.addEventListener('orientationchange', function () { setTimeout(resize, 250); });
 
   window.addEventListener('pointermove', function (e) {
     mouse.tx = e.clientX / W;
     mouse.ty = e.clientY / H;
   });
+
+  canvas.addEventListener('contextmenu', function (e) { e.preventDefault(); });
 
   canvas.addEventListener('pointerdown', function (e) {
     if (!inside) return;
@@ -1137,11 +1271,14 @@
     document.title = document.hidden ? 'come back.' : 'a sky for melike';
   });
 
+  if (birthday) document.body.classList.add('birthday');
   resize();
   computeMoon();
   doorGreeting();
   loadWishes();
   renderSoundBtn();
+  tickCountdown();
+  setInterval(tickCountdown, 1000);
   requestAnimationFrame(frame);
   // no autofocus on phones, the keyboard jumping up is annoying
   if (!isTouch) setTimeout(function () { doorInput.focus(); }, 600);
