@@ -439,6 +439,7 @@
   // the note box on a star
   // ---------------------------------------------------------------
   var openWish = null;
+  var focusOnUp = false;
 
   var REPLIES = ['noted.', 'kept.', 'the moon has been informed.', 'filed under: pending.', 'ok. that one’s a good one.', 'i’ll see what i can do.'];
 
@@ -479,7 +480,9 @@
     }
     wishbox.classList.add('show');
     placeBox(px, py);
-    if (!w.seed) setTimeout(function () { wishboxInput.focus(); }, 40);
+    // the keyboard only comes up if focus happens inside the tap itself,
+    // so the pointerup handler does it. no timeouts, phones hate those.
+    focusOnUp = !w.seed;
   }
 
   function placeBox(px, py) {
@@ -530,6 +533,7 @@
     say('gone. no one saw.');
   }
 
+  wishboxInput.addEventListener('pointerdown', function (e) { e.stopPropagation(); });
   wishboxKeep.addEventListener('click', keepWish);
   wishboxDrop.addEventListener('click', dropWish);
   wishboxOk.addEventListener('click', closeBox);
@@ -1247,12 +1251,30 @@
     var letter = letterAt(e.clientX, e.clientY);
     if (letter >= 0) { sayLetter(letter); return; }
     var w = wishAt(e.clientX, e.clientY);
-    if (w) { openBox(w, e.clientX, e.clientY); return; }
+    if (w) {
+      // stops the fake mousedown that follows a touch, which would steal
+      // focus straight back off the input
+      e.preventDefault();
+      openBox(w, e.clientX, e.clientY);
+      return;
+    }
     beginWish(e.clientX, e.clientY);
   });
 
-  window.addEventListener('pointerup', endWish);
-  window.addEventListener('pointercancel', endWish);
+  function pointerUp() {
+    endWish();
+    if (focusOnUp) {
+      focusOnUp = false;
+      if (openWish && !openWish.seed) {
+        wishboxInput.focus();
+        // ios sometimes wants a nudge on the element itself
+        try { wishboxInput.setSelectionRange(wishboxInput.value.length, wishboxInput.value.length); } catch (err) {}
+      }
+    }
+  }
+
+  window.addEventListener('pointerup', pointerUp);
+  window.addEventListener('pointercancel', pointerUp);
   window.addEventListener('blur', function () { pending = null; });
 
   revealBtn.addEventListener('click', lookUp);
